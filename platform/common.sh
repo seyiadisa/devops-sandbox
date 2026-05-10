@@ -20,9 +20,13 @@ refresh_runtime_config() {
     ARCHIVE_DIR="${LOGS_DIR}/archived"
     NGINX_CONF_DIR="${REPO_ROOT}/nginx/conf.d"
     SANDBOX_DOCKERFILE="${REPO_ROOT}/sandbox_app/Dockerfile"
+    # shellcheck disable=SC2034
     CLEANUP_LOG_FILE="${LOGS_DIR}/cleanup.log"
+    # shellcheck disable=SC2034
     HEALTH_MONITOR_LOG_FILE="${LOGS_DIR}/health-monitor.log"
+    # shellcheck disable=SC2034
     CLEANUP_PID_FILE="${STATE_DIR}/cleanup_daemon.pid"
+    # shellcheck disable=SC2034
     HEALTH_PID_FILE="${STATE_DIR}/health_poller.pid"
 }
 

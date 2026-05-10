@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install platform dependencies
+        run: pip install -r platform/requirements.txt
+
+      - name: Compile Python modules
+        run: python -m py_compile platform/api.py platform/main.py sandbox_app/app.py
+
+      - name: Validate Docker Compose config
+        run: docker compose config
+
+      - name: Validate shell scripts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck platform/*.sh monitor/*.sh

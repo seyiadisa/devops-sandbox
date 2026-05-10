@@ -2,7 +2,7 @@ name: ${PROJECT_NAME:-devops-sandbox}
 
 services:
   nginx:
-    image: nginx:latest
+    image: nginx:1.27-alpine
     container_name: ${PROJECT_NAME:-devops-sandbox}-nginx
     ports:
       - "${NGINX_PORT:-8080}:80"
@@ -26,7 +26,7 @@ services:
     environment:
       PROJECT_NAME: ${PROJECT_NAME:-devops-sandbox}
       API_PORT: ${API_PORT:-8000}
-      DOCKER_NETWORK: ${DOCKER_NETWORK:-devops-sandbox-edge}
+      EDGE_NETWORK: ${EDGE_NETWORK:-devops-sandbox-edge}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
@@ -34,21 +34,41 @@ services:
       - ./envs:/app/envs
       - ./logs:/app/logs
       - ./nginx:/app/nginx
+      - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /app/platform
     healthcheck:
       test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          'import os, urllib.request; urllib.request.urlopen(f"http://127.0.0.1:{os.getenv(''API_PORT'', ''8000'')}/health")',
-        ]
+        - CMD-SHELL
+        - python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.getenv('API_PORT', '8000'))"
       interval: 15s
       timeout: 5s
       retries: 5
     networks:
       - edge
 
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["observability"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitor/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    networks:
+      - edge
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["observability"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    networks:
+      - edge
+
 networks:
   edge:
-    name: ${DOCKER_NETWORK:-devops-sandbox-edge}
+    name: ${EDGE_NETWORK:-devops-sandbox-edge}

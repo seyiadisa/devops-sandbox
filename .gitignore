@@ -9,6 +9,10 @@ envs/*
 !envs/.gitkeep
 
 logs/*
+!logs/.gitkeep
+!logs/archived/
+logs/archived/*
+!logs/archived/.gitkeep
 
 nginx/conf.d/*
 !nginx/conf.d/.gitkeep

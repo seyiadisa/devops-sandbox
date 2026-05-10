@@ -1,0 +1,14 @@
+.env
+.env.local
+.venv/
+platform/.venv/
+__pycache__/
+*.pyc
+
+envs/*
+!envs/.gitkeep
+
+logs/*
+
+nginx/conf.d/*
+!nginx/conf.d/.gitkeep

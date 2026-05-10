@@ -37,9 +37,9 @@ if [[ -n "${LOG_PID:-}" ]] && kill -0 "${LOG_PID}" >/dev/null 2>&1; then
     wait "${LOG_PID}" 2>/dev/null || true
 fi
 
-CONTAINERS="$(docker ps -aq --filter "label=sandbox.env=${ENV_ID}")"
-if [[ -n "${CONTAINERS}" ]]; then
-    docker rm -f ${CONTAINERS} >/dev/null
+mapfile -t CONTAINERS < <(docker ps -aq --filter "label=sandbox.env=${ENV_ID}")
+if [[ "${#CONTAINERS[@]}" -gt 0 ]]; then
+    docker rm -f "${CONTAINERS[@]}" >/dev/null
 elif docker container inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
     docker rm -f "${CONTAINER_NAME}" >/dev/null
 fi

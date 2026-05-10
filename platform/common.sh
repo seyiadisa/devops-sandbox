@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 refresh_runtime_config() {
+    # shellcheck disable=SC2034
     PROJECT_NAME="${PROJECT_NAME:-devops-sandbox}"
     EDGE_NETWORK="${EDGE_NETWORK:-${DOCKER_NETWORK:-devops-sandbox-edge}}"
     API_PORT="${API_PORT:-8000}"

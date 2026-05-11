@@ -9,10 +9,12 @@ source "${SCRIPT_DIR}/common.sh"
 load_env_file
 require_command python3
 
-mkdir -p "${LOGS_DIR}"
-touch "${CLEANUP_LOG_FILE}"
+cleanup_log_file="$(cleanup_log_file_path)"
 
-log_with_timestamp "${CLEANUP_LOG_FILE}" "cleanup daemon started"
+mkdir -p "${LOGS_DIR}"
+touch "${cleanup_log_file}"
+
+log_with_timestamp "${cleanup_log_file}" "cleanup daemon started"
 
 while true; do
     shopt -s nullglob
@@ -31,11 +33,11 @@ expired = datetime.now(timezone.utc) > created + timedelta(seconds=ttl_seconds)
 sys.exit(0 if expired else 1)
 PY
         then
-            log_with_timestamp "${CLEANUP_LOG_FILE}" "ttl expired for ${env_id}, destroying environment"
-            if bash "${SCRIPT_DIR}/destroy_env.sh" "${env_id}" >>"${CLEANUP_LOG_FILE}" 2>&1; then
-                log_with_timestamp "${CLEANUP_LOG_FILE}" "destroyed expired environment ${env_id}"
+            log_with_timestamp "${cleanup_log_file}" "ttl expired for ${env_id}, destroying environment"
+            if bash "${SCRIPT_DIR}/destroy_env.sh" "${env_id}" >>"${cleanup_log_file}" 2>&1; then
+                log_with_timestamp "${cleanup_log_file}" "destroyed expired environment ${env_id}"
             else
-                log_with_timestamp "${CLEANUP_LOG_FILE}" "failed to destroy expired environment ${env_id}"
+                log_with_timestamp "${cleanup_log_file}" "failed to destroy expired environment ${env_id}"
             fi
         fi
     done

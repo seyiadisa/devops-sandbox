@@ -10,8 +10,9 @@ source "${REPO_ROOT}/platform/common.sh"
 load_env_file
 require_command python3
 
-touch "${HEALTH_MONITOR_LOG_FILE}"
-log_with_timestamp "${HEALTH_MONITOR_LOG_FILE}" "health poller started"
+health_monitor_log_file="$(health_monitor_log_file_path)"
+touch "${health_monitor_log_file}"
+log_with_timestamp "${health_monitor_log_file}" "health poller started"
 
 check_env_health() {
     local state_file="$1"
@@ -84,7 +85,7 @@ if failures >= 3 and data.get("status") != "destroying":
             if [[ "${previous_failures}" -lt 3 && "${failure_count}" -ge 3 ]]; then
                 warning="WARNING: ${env_id} is degraded after ${failure_count} consecutive health check failures"
                 printf '%s\n' "${warning}"
-                log_with_timestamp "${HEALTH_MONITOR_LOG_FILE}" "${warning}"
+                log_with_timestamp "${health_monitor_log_file}" "${warning}"
             fi
         fi
     done

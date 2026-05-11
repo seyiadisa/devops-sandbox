@@ -8,7 +8,7 @@ source "${SCRIPT_DIR}/common.sh"
 
 load_env_file
 
-stop_background_script "${CLEANUP_PID_FILE}"
-stop_background_script "${HEALTH_PID_FILE}"
+stop_background_script "$(cleanup_pid_file_path)"
+stop_background_script "$(health_pid_file_path)"
 
 printf 'Background workers stopped\n'

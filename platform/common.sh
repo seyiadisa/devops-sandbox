@@ -7,29 +7,33 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 refresh_runtime_config() {
-    # shellcheck disable=SC2034
-    PROJECT_NAME="${PROJECT_NAME}"
-    EDGE_NETWORK="${EDGE_NETWORK}"
-    API_PORT="${API_PORT}"
-    NGINX_PORT="${NGINX_PORT}"
-    SANDBOX_IMAGE="${SANDBOX_IMAGE-${PROJECT_NAME}-sandbox-app}"
-    SANDBOX_INTERNAL_PORT="${SANDBOX_INTERNAL_PORT}"
-    DEFAULT_TTL_MINUTES="${DEFAULT_TTL_MINUTES}"
-    NGINX_CONTAINER_NAME="${NGINX_CONTAINER_NAME-${PROJECT_NAME}-nginx}"
-    LOKI_URL="${LOKI_URL}"
     STATE_DIR="${REPO_ROOT}/envs"
     LOGS_DIR="${REPO_ROOT}/logs"
     ARCHIVE_DIR="${LOGS_DIR}/archived"
     NGINX_CONF_DIR="${REPO_ROOT}/nginx/conf.d"
     SANDBOX_DOCKERFILE="${REPO_ROOT}/sandbox_app/Dockerfile"
-    # shellcheck disable=SC2034
-    CLEANUP_LOG_FILE="${LOGS_DIR}/cleanup.log"
-    # shellcheck disable=SC2034
-    HEALTH_MONITOR_LOG_FILE="${LOGS_DIR}/health-monitor.log"
-    # shellcheck disable=SC2034
-    CLEANUP_PID_FILE="${STATE_DIR}/cleanup_daemon.pid"
-    # shellcheck disable=SC2034
-    HEALTH_PID_FILE="${STATE_DIR}/health_poller.pid"
+}
+
+require_env_var() {
+    local name="$1"
+    if [[ -z "${!name:-}" ]]; then
+        printf 'Required environment variable not set: %s\n' "${name}" >&2
+        exit 1
+    fi
+}
+
+finalize_runtime_config() {
+    require_env_var "PROJECT_NAME"
+    require_env_var "EDGE_NETWORK"
+    require_env_var "API_PORT"
+    require_env_var "NGINX_PORT"
+    require_env_var "SANDBOX_BASE_URL"
+    require_env_var "DEFAULT_TTL_MINUTES"
+    require_env_var "SANDBOX_INTERNAL_PORT"
+    require_env_var "LOKI_URL"
+
+    SANDBOX_IMAGE="${SANDBOX_IMAGE-${PROJECT_NAME}-sandbox-app}"
+    NGINX_CONTAINER_NAME="${NGINX_CONTAINER_NAME-${PROJECT_NAME}-nginx}"
 }
 
 require_command() {
@@ -52,6 +56,7 @@ load_env_file() {
         exit 1
     fi
     refresh_runtime_config
+    finalize_runtime_config
     mkdir -p "${STATE_DIR}" "${LOGS_DIR}" "${ARCHIVE_DIR}" "${NGINX_CONF_DIR}"
 }
 
@@ -65,6 +70,22 @@ logs_dir_path() {
 
 nginx_conf_path() {
     printf '%s/%s.conf\n' "${NGINX_CONF_DIR}" "$1"
+}
+
+cleanup_log_file_path() {
+    printf '%s/cleanup.log\n' "${LOGS_DIR}"
+}
+
+health_monitor_log_file_path() {
+    printf '%s/health-monitor.log\n' "${LOGS_DIR}"
+}
+
+cleanup_pid_file_path() {
+    printf '%s/cleanup_daemon.pid\n' "${STATE_DIR}"
+}
+
+health_pid_file_path() {
+    printf '%s/health_poller.pid\n' "${STATE_DIR}"
 }
 
 timestamp_utc() {

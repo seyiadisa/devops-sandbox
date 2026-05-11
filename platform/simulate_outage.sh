@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "${ENV_ID}" || -z "${MODE}" ]]; then
-    printf 'Usage: %s --env <env-id> --mode <crash|pause|network|recover|stress>\n' "$0" >&2
+    printf 'Usage: %s --env <env-id> --mode <crash|pause|network|recover>\n' "$0" >&2
     exit 1
 fi
 
@@ -62,15 +62,6 @@ case "${MODE}" in
         docker start "${CONTAINER_NAME}" >/dev/null 2>&1 || true
         docker unpause "${CONTAINER_NAME}" >/dev/null 2>&1 || true
         docker network connect "${EDGE_NETWORK}" "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-        docker exec "${CONTAINER_NAME}" pkill -f stress-ng >/dev/null 2>&1 || true
-        ;;
-    stress)
-        if docker exec "${CONTAINER_NAME}" sh -c 'command -v stress-ng >/dev/null 2>&1'; then
-            docker exec -d "${CONTAINER_NAME}" sh -c 'stress-ng --cpu 1 --timeout 120s'
-        else
-            printf 'stress-ng is not installed in the sandbox app image.\n' >&2
-            exit 1
-        fi
         ;;
     *)
         printf 'Unsupported outage mode: %s\n' "${MODE}" >&2

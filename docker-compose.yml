@@ -32,7 +32,7 @@ services:
       SANDBOX_BASE_URL: ${SANDBOX_BASE_URL}
       DEFAULT_TTL_MINUTES: ${DEFAULT_TTL_MINUTES}
       SANDBOX_INTERNAL_PORT: ${SANDBOX_INTERNAL_PORT}
-      LOKI_URL: ${LOKI_URL}
+      LOKI_URL: http://loki:3100
     volumes:
       - ./platform:/app/platform
       - ./sandbox_app:/app/sandbox_app:ro

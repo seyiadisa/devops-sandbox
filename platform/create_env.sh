@@ -55,6 +55,7 @@ docker network create "${NETWORK_NAME}" >/dev/null
 
 docker run -d --name "${CONTAINER_NAME}" \
     --label "sandbox.env=${ENV_ID}" \
+    --label "sandbox.role=app" \
     --env "SANDBOX_ENV_ID=${ENV_ID}" \
     --env "SANDBOX_ENV_NAME=${NAME}" \
     --network "${NETWORK_NAME}" \

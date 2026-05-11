@@ -379,7 +379,6 @@ Supported modes:
 - `pause`: `docker pause` the sandbox app container
 - `network`: disconnect the sandbox app from the shared edge network
 - `recover`: undo the last simulated outage
-- `stress`: optional CPU stress using `stress-ng` if available in the app container
 
 Safety guard:
 
@@ -604,7 +603,6 @@ It validates:
 
 - Built for a single Linux VM only
 - Uses path-based routing instead of wildcard subdomains
-- `stress` mode requires `stress-ng` inside the sandbox app image
 - The cleanup daemon and health poller run on the VM host, not as containers
 - The API container shells out to Docker-backed lifecycle scripts, so Docker socket permissions on the Linux VM must be correct
 - This project assumes a Linux host with standard `bash`, `nohup`, `mktemp`, and `/var/run/docker.sock`

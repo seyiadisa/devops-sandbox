@@ -107,7 +107,6 @@ Run this project on a single Linux VM with:
 Recommended open ports:
 
 - `8080` for Nginx
-- `8000` for the control API
 - `9090` for Prometheus
 - `3100` for Loki
 - `3000` for Grafana
@@ -127,11 +126,11 @@ Current example variables:
 ```env
 PROJECT_NAME=devops-sandbox
 NGINX_PORT=8080
-API_PORT=8000
+API_PORT=8080/api
 EDGE_NETWORK=devops-sandbox-edge
 SANDBOX_BASE_URL=http://localhost:8080
 DEFAULT_TTL_MINUTES=30
-SANDBOX_INTERNAL_PORT=8000
+SANDBOX_INTERNAL_PORT=8080/api
 LOKI_URL=http://localhost:3100
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=admin
@@ -141,7 +140,7 @@ What they do:
 
 - `PROJECT_NAME`: prefix used for long-running platform containers and networks
 - `NGINX_PORT`: host port exposed by Nginx
-- `API_PORT`: host port exposed by the control API
+- `API_PORT`: internal port used by the control API container
 - `EDGE_NETWORK`: shared Docker network used by Nginx and all active sandbox apps
 - `SANDBOX_BASE_URL`: base URL printed by the lifecycle scripts
 - `DEFAULT_TTL_MINUTES`: fallback TTL when none is supplied
@@ -193,7 +192,7 @@ This starts:
 
 ```bash
 curl http://localhost:8080/health
-curl http://localhost:8000/health
+curl http://localhost:8080/api/health
 ```
 
 ### 5. Create your first environment
@@ -392,7 +391,7 @@ Safety guard:
 Base URL:
 
 ```text
-http://localhost:8000
+http://localhost:8080/api
 ```
 
 Endpoints:
@@ -407,7 +406,7 @@ Endpoints:
 Example create request:
 
 ```bash
-curl -X POST http://localhost:8000/envs \
+curl -X POST http://localhost:8080/api/envs \
   -H "Content-Type: application/json" \
   -d '{"name":"demo","ttl_minutes":30}'
 ```
@@ -415,7 +414,7 @@ curl -X POST http://localhost:8000/envs \
 Example outage request:
 
 ```bash
-curl -X POST http://localhost:8000/envs/<env-id>/outage \
+curl -X POST http://localhost:8080/api/envs/<env-id>/outage \
   -H "Content-Type: application/json" \
   -d '{"mode":"crash"}'
 ```
@@ -483,7 +482,7 @@ http://localhost:8080/envs/<env-id>/
 
 ```bash
 curl http://localhost:8080/envs/<env-id>/health
-curl http://localhost:8000/envs/<env-id>/health
+curl http://localhost:8080/api/envs/<env-id>/health
 make health
 ```
 
@@ -514,7 +513,7 @@ Check:
 
 ```bash
 make health
-curl http://localhost:8000/envs
+curl http://localhost:8080/api/envs
 tail -f logs/<env-id>/health.log
 ```
 

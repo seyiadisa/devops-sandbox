@@ -51,9 +51,6 @@ load_env_file() {
         # shellcheck disable=SC1090
         source "${env_file}"
         set +a
-    else
-        printf 'Environment file not found: %s\n' "${env_file}" >&2
-        exit 1
     fi
     refresh_runtime_config
     finalize_runtime_config

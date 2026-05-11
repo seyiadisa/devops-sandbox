@@ -33,8 +33,6 @@ services:
       DEFAULT_TTL_MINUTES: ${DEFAULT_TTL_MINUTES}
       SANDBOX_INTERNAL_PORT: ${SANDBOX_INTERNAL_PORT}
       LOKI_URL: ${LOKI_URL}
-    ports:
-      - "${API_PORT}:8000"
     volumes:
       - ./platform:/app/platform
       - ./sandbox_app:/app/sandbox_app:ro

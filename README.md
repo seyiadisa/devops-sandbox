@@ -61,9 +61,10 @@ Incoming Traffic -->|   |   Nginx Container |                         |
                     |   - monitor/health_poller.sh                     |
                     +-------------------------------------------------+
 
-Optional extras:
+Observability:
 - Prometheus scrapes `GET /metrics` from the control API
-- Grafana can visualize the Prometheus data
+- Promtail ships container logs to Loki
+- Grafana can visualize both metrics and logs
 ```
 
 ## Repository Layout
@@ -72,7 +73,7 @@ Optional extras:
 devops-sandbox/
 ├── platform/          # create_env.sh, destroy_env.sh, cleanup_daemon.sh, API, worker helpers
 ├── nginx/             # nginx.conf + conf.d/ generated per-environment configs
-├── monitor/           # health poller + optional Prometheus config
+├── monitor/           # health poller + Prometheus/Loki/Promtail/Grafana configs
 ├── logs/              # runtime logs, gitignored except placeholders
 ├── envs/              # runtime state files, gitignored except placeholders
 ├── Makefile
@@ -86,7 +87,10 @@ devops-sandbox/
 - Nginx
 - Bash + Makefile
 - Python 3 / FastAPI
-- Optional: Prometheus + Grafana
+- Prometheus
+- Loki
+- Promtail
+- Grafana
 - Optional: GitHub Actions CI
 
 ## Prerequisites
@@ -104,8 +108,9 @@ Recommended open ports:
 
 - `8080` for Nginx
 - `8000` for the control API
-- `9090` for Prometheus optional
-- `3000` for Grafana optional
+- `9090` for Prometheus
+- `3100` for Loki
+- `3000` for Grafana
 
 ## Configuration
 
@@ -125,6 +130,11 @@ NGINX_PORT=8080
 API_PORT=8000
 EDGE_NETWORK=devops-sandbox-edge
 SANDBOX_BASE_URL=http://localhost:8080
+DEFAULT_TTL_MINUTES=30
+SANDBOX_INTERNAL_PORT=8000
+LOKI_URL=http://localhost:3100
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=admin
 ```
 
 What they do:
@@ -134,6 +144,10 @@ What they do:
 - `API_PORT`: host port exposed by the control API
 - `EDGE_NETWORK`: shared Docker network used by Nginx and all active sandbox apps
 - `SANDBOX_BASE_URL`: base URL printed by the lifecycle scripts
+- `DEFAULT_TTL_MINUTES`: fallback TTL when none is supplied
+- `SANDBOX_INTERNAL_PORT`: internal port exposed by the sandbox app container
+- `LOKI_URL`: Loki base URL used by the API and CLI log queries
+- `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`: Grafana login credentials
 
 ## Full Setup
 
@@ -168,6 +182,10 @@ This starts:
 
 - the Nginx front door
 - the control API
+- Prometheus
+- Loki
+- Promtail
+- Grafana
 - the cleanup daemon in the background
 - the health poller in the background
 
@@ -329,7 +347,7 @@ Runtime collection:
 - Promtail reads container logs from the Docker socket
 - Loki stores the log streams
 - sandbox containers are labeled with `sandbox.env=<env-id>`
-- `make logs ENV=<env-id>` queries Loki by the `sandbox_env` label
+- `make logs ENV=<env-id>` queries Loki by the `sandbox_env` label for active environments
 
 On environment destruction:
 
@@ -419,7 +437,7 @@ Available targets:
   Destroys one environment.
 
 - `make logs ENV=<env-id>`  
-  Tails current or archived app logs for the environment.
+  Queries Loki for active envs and reads archived `app.log` after destroy.
 
 - `make health`  
   Prints all current environment statuses with TTL remaining and failure counts.
@@ -541,7 +559,7 @@ logs/archived/<env-id>/
 
 ## Observability
 
-Prometheus, Loki, Promtail, and Grafana are included in the Compose stack.
+Prometheus, Loki, Promtail, and Grafana are included in the default Compose stack and start with `make up`.
 
 Access:
 
@@ -549,10 +567,10 @@ Access:
 - Loki: `http://localhost:3100`
 - Grafana: `http://localhost:3000`
 
-Default Grafana credentials:
+Grafana credentials:
 
 ```text
-admin / admin
+<GRAFANA_ADMIN_USER> / <GRAFANA_ADMIN_PASSWORD>
 ```
 
 Prometheus scrapes:
@@ -562,6 +580,12 @@ GET /metrics
 ```
 
 from the control API, and Grafana is pre-provisioned with both Prometheus and Loki datasources.
+
+Active app logs can also be queried from the CLI:
+
+```bash
+make logs ENV=<env-id>
+```
 
 ## CI
 

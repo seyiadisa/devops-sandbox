@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 from __future__ import annotations
 
@@ -39,7 +39,9 @@ def _iso_to_ns(value: str) -> int:
     return int(datetime.fromisoformat(value).timestamp() * 1_000_000_000)
 
 
-def _query_loki(env_id: str, start_ns: int, end_ns: int, limit: int) -> list[tuple[int, str]]:
+def _query_loki(
+    env_id: str, start_ns: int, end_ns: int, limit: int
+) -> list[tuple[int, str]]:
     loki_url = _required_env("LOKI_URL")
     params = urllib.parse.urlencode(
         {
@@ -50,7 +52,9 @@ def _query_loki(env_id: str, start_ns: int, end_ns: int, limit: int) -> list[tup
             "direction": "backward",
         }
     )
-    with urllib.request.urlopen(f"{loki_url}/loki/api/v1/query_range?{params}", timeout=30) as response:
+    with urllib.request.urlopen(
+        f"{loki_url}/loki/api/v1/query_range?{params}", timeout=30
+    ) as response:
         payload = json.load(response)
 
     streams = payload.get("data", {}).get("result", [])
@@ -75,22 +79,31 @@ def cmd_export(args: argparse.Namespace) -> int:
     end_ns = int(datetime.now(UTC).timestamp() * 1_000_000_000)
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    lines = [line.rstrip("\n") for _, line in _query_loki(args.env, start_ns, end_ns, args.limit)]
+    lines = [
+        line.rstrip("\n")
+        for _, line in _query_loki(args.env, start_ns, end_ns, args.limit)
+    ]
     output_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Query Loki logs for sandbox environments.")
+    parser = argparse.ArgumentParser(
+        description="Query Loki logs for sandbox environments."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    tail_parser = subparsers.add_parser("tail", help="Print recent logs for an environment.")
+    tail_parser = subparsers.add_parser(
+        "tail", help="Print recent logs for an environment."
+    )
     tail_parser.add_argument("--env", required=True)
     tail_parser.add_argument("--limit", type=int, default=100)
     tail_parser.add_argument("--hours", type=int, default=24)
     tail_parser.set_defaults(func=cmd_tail)
 
-    export_parser = subparsers.add_parser("export", help="Export logs for an environment to a file.")
+    export_parser = subparsers.add_parser(
+        "export", help="Export logs for an environment to a file."
+    )
     export_parser.add_argument("--env", required=True)
     export_parser.add_argument("--start", required=True)
     export_parser.add_argument("--output", required=True)

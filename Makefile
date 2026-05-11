@@ -64,10 +64,11 @@ simulate:
 	bash ./platform/simulate_outage.sh --env "${ENV}" --mode "${MODE}"
 
 clean: down
+	docker compose down --remove-orphans --volumes
 	rm -f nginx/conf.d/*.conf
-	find envs -mindepth 1 ! -name '.gitkeep' -delete
-	find logs -mindepth 1 -maxdepth 1 ! -name '.gitkeep' ! -name 'archived' -exec rm -rf {} +
-	find logs/archived -mindepth 1 ! -name '.gitkeep' -delete
+	find envs -mindepth 1 -delete
+	find logs -mindepth 1 -maxdepth 1 ! -name 'archived' -exec rm -rf {} +
+	find logs/archived -mindepth 1 -delete
 
 ensure-dirs:
 	mkdir -p envs logs logs/archived nginx/conf.d monitor

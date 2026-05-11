@@ -28,7 +28,7 @@ from pathlib import Path
 
 data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 created = datetime.fromisoformat(data["created_at"].replace("Z", "+00:00"))
-ttl_seconds = int(data["ttl_seconds"])
+ttl_seconds = int(data["ttl_minutes"]) * 60
 expired = datetime.now(timezone.utc) > created + timedelta(seconds=ttl_seconds)
 sys.exit(0 if expired else 1)
 PY

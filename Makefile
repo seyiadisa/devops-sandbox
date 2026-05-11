@@ -54,7 +54,7 @@ logs:
 	fi
 
 health:
-	@python3 -c "import json; from datetime import datetime, timezone; from pathlib import Path; now = datetime.now(timezone.utc); [print(f\"{data['id']}: status={data.get('status')} ttl_remaining_seconds={max(int(data.get('ttl_seconds', 0) - (now - datetime.fromisoformat(data['created_at'].replace('Z', '+00:00'))).total_seconds()), 0)} failures={data.get('consecutive_failures', 0)}\") for state_file in sorted(Path('envs').glob('*.json')) for data in [json.loads(state_file.read_text(encoding='utf-8'))]]"
+	@python3 -c "import json; from datetime import datetime, timezone; from pathlib import Path; now = datetime.now(timezone.utc); [print(f\"{data['id']}: status={data.get('status')} ttl_remaining_seconds={max(int(data.get('ttl_minutes', 0)) * 60 - int((now - datetime.fromisoformat(data['created_at'].replace('Z', '+00:00'))).total_seconds()), 0)}\") for state_file in sorted(Path('envs').glob('*.json')) for data in [json.loads(state_file.read_text(encoding='utf-8'))]]"
 
 simulate:
 	@if [ -z "${ENV}" ] || [ -z "${MODE}" ]; then \

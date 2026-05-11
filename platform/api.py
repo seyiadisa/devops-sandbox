@@ -47,8 +47,8 @@ def _parse_datetime(value: str) -> datetime | None:
 
 def _ttl_remaining_seconds(state: dict[str, Any]) -> int | None:
     created_at = state.get("created_at")
-    ttl_seconds = state.get("ttl_seconds")
-    if not created_at or ttl_seconds is None:
+    ttl_minutes = state.get("ttl_minutes")
+    if not created_at or ttl_minutes is None:
         return None
 
     created = _parse_datetime(str(created_at))
@@ -56,7 +56,7 @@ def _ttl_remaining_seconds(state: dict[str, Any]) -> int | None:
         return None
 
     elapsed = int((_utc_now() - created).total_seconds())
-    return max(int(ttl_seconds) - elapsed, 0)
+    return max((int(ttl_minutes) * 60) - elapsed, 0)
 
 
 def _read_env_states() -> list[dict[str, Any]]:

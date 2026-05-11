@@ -91,19 +91,10 @@ payload = {
     "name": "${NAME}",
     "created_at": "${CREATED_AT}",
     "ttl_minutes": ${TTL_MINUTES},
-    "ttl_seconds": ${TTL_SECONDS},
     "status": "healthy",
     "url": "${URL}",
     "network": "${NETWORK_NAME}",
-    "edge_network": "${EDGE_NETWORK}",
-    "container_id": "${CONTAINER_ID}",
     "container_name": "${CONTAINER_NAME}",
-    "log_backend": "loki",
-    "outage_mode": None,
-    "outage_meta": {},
-    "consecutive_failures": 0,
-    "last_health_status": None,
-    "last_latency_ms": None,
 }
 print(json.dumps(payload, indent=2))
 PY

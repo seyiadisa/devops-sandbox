@@ -64,24 +64,40 @@ while true; do
         if [[ "${status_code}" -ge 200 && "${status_code}" -lt 400 ]]; then
             [[ -f "${state_file}" ]] || continue
             append_json_state_file "${state_file}" '
-data["consecutive_failures"] = 0
-data["last_health_status"] = int("'"${status_code}"'")
-data["last_latency_ms"] = int("'"${latency_ms}"'")
 if data.get("status") != "destroying":
     data["status"] = "healthy"
 '
         else
             [[ -f "${state_file}" ]] || continue
-            previous_failures="$(state_json_get "${state_file}" "consecutive_failures" || printf '0')"
+            previous_failures="$(python3 - "${health_log}" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+if not path.exists():
+    print(0)
+    raise SystemExit
+
+count = 0
+for line in reversed(path.read_text(encoding="utf-8").splitlines()):
+    if " status=" not in line:
+        continue
+    status_token = line.split("status=", 1)[1].split()[0]
+    try:
+        status_code = int(status_token)
+    except ValueError:
+        break
+    if 200 <= status_code < 400:
+        break
+    count += 1
+print(count - 1 if count > 0 else 0)
+PY
+)"
             append_json_state_file "${state_file}" '
-failures = int(data.get("consecutive_failures", 0)) + 1
-data["consecutive_failures"] = failures
-data["last_health_status"] = int("'"${status_code}"'")
-data["last_latency_ms"] = int("'"${latency_ms}"'")
-if failures >= 3 and data.get("status") != "destroying":
+if int("'"${previous_failures}"'") + 1 >= 3 and data.get("status") != "destroying":
     data["status"] = "degraded"
 '
-            failure_count="$(state_json_get "${state_file}" "consecutive_failures" || printf '0')"
+            failure_count="$((previous_failures + 1))"
             if [[ "${previous_failures}" -lt 3 && "${failure_count}" -ge 3 ]]; then
                 warning="WARNING: ${env_id} is degraded after ${failure_count} consecutive health check failures"
                 printf '%s\n' "${warning}"

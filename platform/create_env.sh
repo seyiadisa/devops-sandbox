@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -euo pipefail
 
@@ -26,7 +26,6 @@ fi
 ENV_ID="$(generate_env_id)"
 STATE_FILE="$(state_file_path "${ENV_ID}")"
 LOG_DIR="$(logs_dir_path "${ENV_ID}")"
-APP_LOG="${LOG_DIR}/app.log"
 NETWORK_NAME="${PROJECT_NAME}-${ENV_ID}"
 CONTAINER_NAME="${PROJECT_NAME}-${ENV_ID}-app"
 CREATED_AT="$(timestamp_utc)"
@@ -35,15 +34,9 @@ URL="$(env_url "${ENV_ID}")"
 NGINX_CONF_FILE="$(nginx_conf_path "${ENV_ID}")"
 
 mkdir -p "${LOG_DIR}"
-touch "${APP_LOG}"
-LOG_PID=""
 
 cleanup_on_failure() {
     set +e
-    if [[ -n "${LOG_PID:-}" ]] && kill -0 "${LOG_PID}" >/dev/null 2>&1; then
-        kill "${LOG_PID}" >/dev/null 2>&1 || true
-        wait "${LOG_PID}" 2>/dev/null || true
-    fi
     if docker container inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
         docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1
     fi
@@ -58,6 +51,7 @@ trap cleanup_on_failure ERR
 ensure_edge_network
 ensure_sandbox_image
 
+echo "Creating Docker network: ${NETWORK_NAME}"
 docker network create "${NETWORK_NAME}" >/dev/null
 
 CONTAINER_ID="$(
@@ -88,8 +82,6 @@ EOF
 
 reload_nginx
 
-LOG_PID="$(start_log_shipper "${CONTAINER_ID}" "${APP_LOG}")"
-
 STATE_JSON="$(
 python3 - <<PY
 import json
@@ -106,7 +98,7 @@ payload = {
     "edge_network": "${EDGE_NETWORK}",
     "container_id": "${CONTAINER_ID}",
     "container_name": "${CONTAINER_NAME}",
-    "log_pid": ${LOG_PID},
+    "log_backend": "loki",
     "outage_mode": None,
     "outage_meta": {},
     "consecutive_failures": 0,

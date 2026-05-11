@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -euo pipefail
 
@@ -24,6 +24,8 @@ import urllib.request
 from pathlib import Path
 
 state_path = Path(sys.argv[1])
+if not state_path.exists():
+    sys.exit(2)
 state = json.loads(state_path.read_text(encoding="utf-8"))
 url = state["url"].rstrip("/") + "/health"
 started = time.perf_counter()
@@ -43,18 +45,23 @@ PY
 while true; do
     shopt -s nullglob
     for state_file in "${STATE_DIR}"/*.json; do
+        [[ -f "${state_file}" ]] || continue
         env_id="$(basename "${state_file}" .json)"
         env_log_dir="${LOGS_DIR}/${env_id}"
         health_log="${env_log_dir}/health.log"
         mkdir -p "${env_log_dir}"
 
-        result="$(check_env_health "${state_file}")"
+        if ! result="$(check_env_health "${state_file}")"; then
+            continue
+        fi
+        [[ -f "${state_file}" ]] || continue
         status_code="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['status'])" "${result}")"
         latency_ms="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['latency_ms'])" "${result}")"
 
         printf '[%s] status=%s latency_ms=%s\n' "$(timestamp_utc)" "${status_code}" "${latency_ms}" >>"${health_log}"
 
         if [[ "${status_code}" -ge 200 && "${status_code}" -lt 400 ]]; then
+            [[ -f "${state_file}" ]] || continue
             append_json_state_file "${state_file}" '
 data["consecutive_failures"] = 0
 data["last_health_status"] = int("'"${status_code}"'")
@@ -63,6 +70,7 @@ if data.get("status") != "destroying":
     data["status"] = "healthy"
 '
         else
+            [[ -f "${state_file}" ]] || continue
             previous_failures="$(state_json_get "${state_file}" "consecutive_failures" || printf '0')"
             append_json_state_file "${state_file}" '
 failures = int(data.get("consecutive_failures", 0)) + 1

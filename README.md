@@ -252,7 +252,7 @@ What it does:
 - writes state to `envs/<env-id>.json`
 - generates Nginx routing config
 - reloads Nginx
-- starts log shipping to `logs/<env-id>/app.log`
+- labels the app for Loki log collection
 - prints URL and TTL
 
 The state file is written atomically through a temporary file and rename.
@@ -264,12 +264,12 @@ The state file is written atomically through a temporary file and rename.
 What it does:
 
 - reads the environment state
-- kills the background log shipper
 - stops and removes all containers with the environment label
 - removes the dedicated Docker network
 - deletes the generated Nginx config
 - reloads Nginx
-- archives logs to `logs/archived/<env-id>/`
+- exports app logs from Loki to `logs/archived/<env-id>/app.log`
+- archives health logs to `logs/archived/<env-id>/`
 - deletes the state file
 
 ## Auto Cleanup
@@ -322,20 +322,19 @@ After 3 consecutive failures:
 
 ## Log Shipping
 
-This project uses Approach A from the specification.
+This project uses Approach B with Loki.
 
-On environment creation:
+Runtime collection:
 
-```bash
-docker logs -f <container_id> >> logs/<env-id>/app.log &
-```
-
-The logger PID is stored in the environment state file.
+- Promtail reads container logs from the Docker socket
+- Loki stores the log streams
+- sandbox containers are labeled with `sandbox.env=<env-id>`
+- `make logs ENV=<env-id>` queries Loki by the `sandbox_env` label
 
 On environment destruction:
 
-- the PID is killed
-- the app log is archived with the rest of the environment logs
+- app logs are exported from Loki to `logs/archived/<env-id>/app.log`
+- health logs are archived with the rest of the environment files
 
 Query logs by environment:
 
@@ -540,19 +539,14 @@ After destroy, logs should be available from:
 logs/archived/<env-id>/
 ```
 
-## Optional Observability Extras
+## Observability
 
-Prometheus and Grafana are included through Docker Compose profiles.
-
-Start them with:
-
-```bash
-docker compose --profile observability up -d prometheus grafana
-```
+Prometheus, Loki, Promtail, and Grafana are included in the Compose stack.
 
 Access:
 
 - Prometheus: `http://localhost:9090`
+- Loki: `http://localhost:3100`
 - Grafana: `http://localhost:3000`
 
 Default Grafana credentials:
@@ -567,7 +561,7 @@ Prometheus scrapes:
 GET /metrics
 ```
 
-from the control API.
+from the control API, and Grafana is pre-provisioned with both Prometheus and Loki datasources.
 
 ## CI
 

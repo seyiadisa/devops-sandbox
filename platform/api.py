@@ -76,6 +76,10 @@ def _read_env_states() -> list[dict[str, Any]]:
     return states
 
 
+def _env_ids() -> set[str]:
+    return {state["id"] for state in _read_env_states() if "id" in state}
+
+
 def _state_file(env_id: str) -> Path:
     return ENVS_DIR / f"{env_id}.json"
 
@@ -115,6 +119,19 @@ def _read_tail(path: Path, line_count: int) -> list[str]:
     return lines[-line_count:]
 
 
+def _read_loki_tail(env_id: str, line_count: int) -> list[str]:
+    result = subprocess.run(
+        ["python3", str(PLATFORM_DIR / "loki_logs.py"), "tail", "--env", env_id, "--limit", str(line_count)],
+        cwd=APP_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=result.stderr.strip() or "Failed to query Loki logs.")
+    return [line for line in result.stdout.splitlines() if line]
+
+
 def _resolve_log_path(env_id: str, filename: str) -> Path:
     active_path = LOGS_DIR / env_id / filename
     if active_path.exists():
@@ -148,18 +165,25 @@ def read_health() -> dict[str, Any]:
 
 @app.post("/envs")
 def create_env(payload: CreateEnvRequest) -> dict[str, Any]:
+    before_ids = _env_ids()
     result = _run_script("create_env.sh", payload.name, str(payload.ttl_minutes))
-    if result.returncode != 0:
-        raise HTTPException(
-            status_code=500,
-            detail=result.stderr.strip() or result.stdout.strip() or "Environment creation failed.",
-        )
 
     env_id = ""
     for line in result.stdout.splitlines():
         if line.startswith("ID: "):
             env_id = line.split("ID: ", 1)[1].strip()
             break
+
+    if not env_id:
+        created_ids = sorted(_env_ids() - before_ids)
+        if len(created_ids) == 1:
+            env_id = created_ids[0]
+
+    if result.returncode != 0 and not env_id:
+        raise HTTPException(
+            status_code=500,
+            detail=result.stderr.strip() or result.stdout.strip() or "Environment creation failed.",
+        )
 
     if not env_id:
         raise HTTPException(status_code=500, detail="Environment was created but ID could not be determined.")
@@ -198,11 +222,14 @@ def destroy_env(env_id: str) -> dict[str, Any]:
 @app.get("/envs/{env_id}/logs")
 def get_env_logs(env_id: str) -> dict[str, Any]:
     log_path = _resolve_log_path(env_id, "app.log")
-    if not log_path.exists():
+    if log_path.exists():
+        lines = _read_tail(log_path, 100)
+    else:
         _read_state(env_id)
+        lines = _read_loki_tail(env_id, 100)
     return {
         "env_id": env_id,
-        "lines": _read_tail(log_path, 100),
+        "lines": lines,
     }
 
 

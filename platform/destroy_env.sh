@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -euo pipefail
 
@@ -28,14 +28,16 @@ NGINX_CONF_FILE="$(nginx_conf_path "${ENV_ID}")"
 
 CONTAINER_NAME="$(state_json_get "${STATE_FILE}" "container_name")"
 NETWORK_NAME="$(state_json_get "${STATE_FILE}" "network")"
-LOG_PID="$(state_json_get "${STATE_FILE}" "log_pid" || true)"
+CREATED_AT="$(state_json_get "${STATE_FILE}" "created_at")"
 
 update_state_file "${STATE_FILE}" '{"status":"destroying"}'
 
-if [[ -n "${LOG_PID:-}" ]] && kill -0 "${LOG_PID}" >/dev/null 2>&1; then
-    kill "${LOG_PID}" >/dev/null 2>&1 || true
-    wait "${LOG_PID}" 2>/dev/null || true
-fi
+mkdir -p "${LOG_DIR}"
+python3 "${SCRIPT_DIR}/loki_logs.py" export \
+    --env "${ENV_ID}" \
+    --start "${CREATED_AT}" \
+    --output "${LOG_DIR}/app.log" \
+    || true
 
 mapfile -t CONTAINERS < <(docker ps -aq --filter "label=sandbox.env=${ENV_ID}")
 if [[ "${#CONTAINERS[@]}" -gt 0 ]]; then

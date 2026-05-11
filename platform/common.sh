@@ -1,20 +1,22 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -euo pipefail
+umask 022
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 refresh_runtime_config() {
     # shellcheck disable=SC2034
-    PROJECT_NAME="${PROJECT_NAME:-devops-sandbox}"
-    EDGE_NETWORK="${EDGE_NETWORK:-${DOCKER_NETWORK:-devops-sandbox-edge}}"
-    API_PORT="${API_PORT:-8000}"
-    NGINX_PORT="${NGINX_PORT:-8080}"
-    SANDBOX_IMAGE="${SANDBOX_IMAGE:-${PROJECT_NAME}-sandbox-app}"
-    SANDBOX_INTERNAL_PORT="${SANDBOX_INTERNAL_PORT:-8000}"
-    DEFAULT_TTL_MINUTES="${DEFAULT_TTL_MINUTES:-30}"
-    NGINX_CONTAINER_NAME="${NGINX_CONTAINER_NAME:-${PROJECT_NAME}-nginx}"
+    PROJECT_NAME="${PROJECT_NAME}"
+    EDGE_NETWORK="${EDGE_NETWORK}"
+    API_PORT="${API_PORT}"
+    NGINX_PORT="${NGINX_PORT}"
+    SANDBOX_IMAGE="${SANDBOX_IMAGE-${PROJECT_NAME}-sandbox-app}"
+    SANDBOX_INTERNAL_PORT="${SANDBOX_INTERNAL_PORT}"
+    DEFAULT_TTL_MINUTES="${DEFAULT_TTL_MINUTES}"
+    NGINX_CONTAINER_NAME="${NGINX_CONTAINER_NAME-${PROJECT_NAME}-nginx}"
+    LOKI_URL="${LOKI_URL}"
     STATE_DIR="${REPO_ROOT}/envs"
     LOGS_DIR="${REPO_ROOT}/logs"
     ARCHIVE_DIR="${LOGS_DIR}/archived"
@@ -29,10 +31,6 @@ refresh_runtime_config() {
     # shellcheck disable=SC2034
     HEALTH_PID_FILE="${STATE_DIR}/health_poller.pid"
 }
-
-refresh_runtime_config
-
-mkdir -p "${STATE_DIR}" "${LOGS_DIR}" "${ARCHIVE_DIR}" "${NGINX_CONF_DIR}"
 
 require_command() {
     local cmd="$1"
@@ -49,6 +47,9 @@ load_env_file() {
         # shellcheck disable=SC1090
         source "${env_file}"
         set +a
+    else
+        printf 'Environment file not found: %s\n' "${env_file}" >&2
+        exit 1
     fi
     refresh_runtime_config
     mkdir -p "${STATE_DIR}" "${LOGS_DIR}" "${ARCHIVE_DIR}" "${NGINX_CONF_DIR}"
@@ -101,6 +102,7 @@ write_state_file() {
     local tmp_file
     tmp_file="$(mktemp "${target_file}.tmp.XXXXXX")"
     printf '%s\n' "${json_payload}" >"${tmp_file}"
+    chmod 0644 "${tmp_file}"
     mv "${tmp_file}" "${target_file}"
 }
 
@@ -121,6 +123,7 @@ data = json.loads(target.read_text(encoding="utf-8"))
 data.update(patch)
 tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
+    chmod 0644 "${tmp_file}"
     mv "${tmp_file}" "${target_file}"
 }
 
@@ -140,6 +143,7 @@ data = json.loads(target.read_text(encoding="utf-8"))
 ${update_python}
 tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
+    chmod 0644 "${tmp_file}"
     mv "${tmp_file}" "${target_file}"
 }
 
@@ -156,12 +160,12 @@ ensure_sandbox_image() {
 }
 
 reload_nginx() {
-    docker exec "${NGINX_CONTAINER_NAME}" nginx -s reload >/dev/null
+    docker exec "${NGINX_CONTAINER_NAME}" nginx -s reload >/dev/null 2>&1
 }
 
 env_url() {
     local env_id="$1"
-    local host="${SANDBOX_BASE_URL:-http://localhost:${NGINX_PORT}}"
+    local host="${SANDBOX_BASE_URL}"
     printf '%s/envs/%s/\n' "${host%/}" "${env_id}"
 }
 
@@ -171,15 +175,10 @@ log_with_timestamp() {
     printf '[%s] %s\n' "$(timestamp_utc)" "$*" >>"${log_file}"
 }
 
-start_log_shipper() {
-    local container_id="$1"
-    local app_log="$2"
-    nohup docker logs -f "${container_id}" >>"${app_log}" 2>&1 &
-    printf '%s\n' "$!"
-}
-
 start_background_script() {
     local pid_file="$1"
+    local log_file="$2"
+    shift
     shift
     if [[ -f "${pid_file}" ]]; then
         local existing_pid
@@ -189,8 +188,17 @@ start_background_script() {
         fi
         rm -f "${pid_file}"
     fi
-    nohup "$@" >/dev/null 2>&1 &
-    printf '%s\n' "$!" >"${pid_file}"
+    mkdir -p "$(dirname "${log_file}")"
+    touch "${log_file}"
+    nohup "$@" >>"${log_file}" 2>&1 </dev/null &
+    local pid="$!"
+    printf '%s\n' "${pid}" >"${pid_file}"
+    sleep 1
+    if ! kill -0 "${pid}" >/dev/null 2>&1; then
+        rm -f "${pid_file}"
+        printf 'Background script failed to stay running: %s\n' "$*" >&2
+        return 1
+    fi
 }
 
 stop_background_script() {

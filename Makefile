@@ -5,7 +5,7 @@ PROJECT_NAME ?= devops-sandbox
 .PHONY: up down create destroy logs health simulate clean ensure-dirs
 
 up: ensure-dirs
-	docker compose up -d --build nginx api
+	docker compose up -d
 	bash ./platform/start_workers.sh
 
 down:
@@ -19,7 +19,7 @@ down:
 	docker compose down --remove-orphans
 
 create:
-	@name="$${NAME:-}"; \
+	@name="$${ENV_NAME:-}"; \
 	ttl="$${TTL:-}"; \
 	if [ -z "$$name" ]; then \
 		read -r -p "Environment name: " name; \
@@ -42,10 +42,10 @@ logs:
 		printf "Usage: make logs ENV=<env-id>\n" >&2; \
 		exit 1; \
 	fi
-	@log_file="logs/${ENV}/app.log"; \
+	@state_file="envs/${ENV}.json"; \
 	archive_file="logs/archived/${ENV}/app.log"; \
-	if [ -f "$$log_file" ]; then \
-		tail -n 100 -f "$$log_file"; \
+	if [ -f "$$state_file" ]; then \
+		python3 ./platform/loki_logs.py tail --env "${ENV}" --limit 100; \
 	elif [ -f "$$archive_file" ]; then \
 		tail -n 100 "$$archive_file"; \
 	else \
@@ -54,12 +54,7 @@ logs:
 	fi
 
 health:
-	@python3 -c "import json; from datetime import datetime, timezone; from pathlib import Path; \
-for state_file in sorted(Path('envs').glob('*.json')): \
- data = json.loads(state_file.read_text(encoding='utf-8')); \
- created = datetime.fromisoformat(data['created_at'].replace('Z', '+00:00')); \
- ttl_remaining = max(int(data.get('ttl_seconds', 0) - (datetime.now(timezone.utc) - created).total_seconds()), 0); \
- print(f\"{data['id']}: status={data.get('status')} ttl_remaining_seconds={ttl_remaining} failures={data.get('consecutive_failures', 0)}\")"
+	@python3 -c "import json; from datetime import datetime, timezone; from pathlib import Path; now = datetime.now(timezone.utc); [print(f\"{data['id']}: status={data.get('status')} ttl_remaining_seconds={max(int(data.get('ttl_seconds', 0) - (now - datetime.fromisoformat(data['created_at'].replace('Z', '+00:00'))).total_seconds()), 0)} failures={data.get('consecutive_failures', 0)}\") for state_file in sorted(Path('envs').glob('*.json')) for data in [json.loads(state_file.read_text(encoding='utf-8'))]]"
 
 simulate:
 	@if [ -z "${ENV}" ] || [ -z "${MODE}" ]; then \

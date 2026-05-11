@@ -71,7 +71,7 @@ services:
       - -config.file=/etc/loki/local-config.yaml
     volumes:
       - ./monitor/loki-config.yml:/etc/loki/local-config.yaml:ro
-      - ./logs/loki:/loki
+      - loki-data:/loki
     networks:
       - edge
 
@@ -100,3 +100,6 @@ services:
 networks:
   edge:
     name: ${EDGE_NETWORK}
+
+volumes:
+  loki-data:

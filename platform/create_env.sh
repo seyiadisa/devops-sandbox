@@ -29,7 +29,6 @@ LOG_DIR="$(logs_dir_path "${ENV_ID}")"
 NETWORK_NAME="${PROJECT_NAME}-${ENV_ID}"
 CONTAINER_NAME="${PROJECT_NAME}-${ENV_ID}-app"
 CREATED_AT="$(timestamp_utc)"
-TTL_SECONDS="$((TTL_MINUTES * 60))"
 URL="$(env_url "${ENV_ID}")"
 NGINX_CONF_FILE="$(nginx_conf_path "${ENV_ID}")"
 
@@ -54,17 +53,14 @@ ensure_sandbox_image
 echo "Creating Docker network: ${NETWORK_NAME}"
 docker network create "${NETWORK_NAME}" >/dev/null
 
-CONTAINER_ID="$(
-    docker run -d \
-        --name "${CONTAINER_NAME}" \
-        --label "sandbox.env=${ENV_ID}" \
-        --label "sandbox.name=${NAME}" \
-        --label "sandbox.role=app" \
-        --env "SANDBOX_ENV_ID=${ENV_ID}" \
-        --env "SANDBOX_ENV_NAME=${NAME}" \
-        --network "${NETWORK_NAME}" \
-        "${SANDBOX_IMAGE}"
-)"
+docker run -d --name "${CONTAINER_NAME}" \
+    --label "sandbox.env=${ENV_ID}" \
+    --label "sandbox.name=${NAME}" \
+    --label "sandbox.role=app" \
+    --env "SANDBOX_ENV_ID=${ENV_ID}" \
+    --env "SANDBOX_ENV_NAME=${NAME}" \
+    --network "${NETWORK_NAME}" \
+    "${SANDBOX_IMAGE}" >/dev/null
 
 docker network connect "${EDGE_NETWORK}" "${CONTAINER_NAME}" >/dev/null
 

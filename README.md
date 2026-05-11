@@ -76,6 +76,7 @@ devops-sandbox/
 ├── monitor/           # health poller + Prometheus/Loki/Promtail/Grafana configs
 ├── logs/              # runtime logs, gitignored except placeholders
 ├── envs/              # runtime state files, gitignored except placeholders
+├── sandbox_app        # demo app inside environments
 ├── Makefile
 └── README.md
 ```
@@ -91,7 +92,6 @@ devops-sandbox/
 - Loki
 - Promtail
 - Grafana
-- Optional: GitHub Actions CI
 
 ## Prerequisites
 
@@ -126,11 +126,11 @@ Current example variables:
 ```env
 PROJECT_NAME=devops-sandbox
 NGINX_PORT=8080
-API_PORT=8080/api
+API_PORT=8000
 EDGE_NETWORK=devops-sandbox-edge
 SANDBOX_BASE_URL=http://localhost:8080
 DEFAULT_TTL_MINUTES=30
-SANDBOX_INTERNAL_PORT=8080/api
+SANDBOX_INTERNAL_PORT=8000
 LOKI_URL=http://localhost:3100
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=admin
@@ -161,14 +161,6 @@ cd devops-sandbox
 
 ```bash
 cp .env.example .env
-```
-
-If your VM host is not using localhost for demo access, update `SANDBOX_BASE_URL` in `.env`.
-
-Example:
-
-```env
-SANDBOX_BASE_URL=http://your-vm-ip:8080
 ```
 
 ### 3. Start the platform
@@ -598,6 +590,38 @@ It validates:
 - Python syntax
 - Docker Compose config
 - shell scripts with `shellcheck`
+
+## CD
+
+The GitHub Actions workflow also supports automatic deployment to a Linux server on every push to `main`.
+
+What the deploy job does:
+
+- validates the repo first
+- connects to your server over SSH
+- changes into `/var/www/devops-sandbox` on the server
+- runs `git pull origin main`
+- runs `docker compose down`
+- runs `docker compose up -d --build`
+- runs `make up`
+
+Required GitHub repository secrets:
+
+- `SERVER_SSH_HOST`: server IP address or hostname
+- `SERVER_SSH_PORT`: SSH port, for example `22`
+- `SERVER_SSH_USER`: SSH user on the server
+- `SERVER_SSH_KEY`: private key used to log into the server
+
+Before using CD, make sure the server already has:
+
+- Docker Engine
+- Docker Compose v2
+- `make`
+- Bash
+- the repository cloned at `/var/www/devops-sandbox`
+- a valid `.env` file already present in `/var/www/devops-sandbox`
+
+The workflow currently deploys only on pushes to the `main` branch. If your default branch is different, update `.github/workflows/ci.yml`.
 
 ## Known Limitations
 

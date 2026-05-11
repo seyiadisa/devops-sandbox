@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -31,3 +31,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
           shellcheck platform/*.sh monitor/*.sh
+
+  deploy:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan -p "${{ secrets.SERVER_SSH_PORT }}" "${{ secrets.SERVER_SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh -p "${{ secrets.SERVER_SSH_PORT }}" "${{ secrets.SERVER_SSH_USER }}"@"${{ secrets.SERVER_SSH_HOST }}"
+          cd /var/www/devops-sandbox
+          git pull origin main
+          docker compose down
+          docker compose up -d --build
+          make up

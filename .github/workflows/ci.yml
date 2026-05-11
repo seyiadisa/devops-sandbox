@@ -20,6 +20,9 @@ jobs:
       - name: Compile Python modules
         run: python -m py_compile platform/api.py platform/main.py sandbox_app/app.py
 
+      - name: Prepare environment file
+        run: cp .env.example .env
+
       - name: Validate Docker Compose config
         run: docker compose config
 

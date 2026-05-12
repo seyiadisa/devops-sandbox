@@ -55,7 +55,6 @@ jobs:
           ssh -p "${{ secrets.SERVER_SSH_PORT }}" "${{ secrets.SERVER_SSH_USER }}"@"${{ secrets.SERVER_SSH_HOST }}" << EOF
           cd /var/www/devops-sandbox
           git pull origin main
-          docker compose down
-          docker compose up -d --build
+          docker compose up -d --build api
           make up
           EOF

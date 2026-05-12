@@ -11,7 +11,7 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./logs:/var/log/devops-sandbox
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "nginx -t || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -54,10 +54,21 @@ services:
     image: prom/prometheus:latest
     ports:
       - "9090:9090"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT}
     volumes:
       - ./monitor/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ "$$ENVIRONMENT" = "production" ]; then
+          exec /bin/prometheus \
+            --config.file=/etc/prometheus/prometheus.yml \
+            --web.external-url=/prometheus/ \
+            --web.route-prefix=/prometheus/
+        fi
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml
     networks:
       - edge
 
@@ -88,12 +99,20 @@ services:
     ports:
       - "3000:3000"
     environment:
+      ENVIRONMENT: ${ENVIRONMENT}
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
-      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
       - ./monitor/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ "$$ENVIRONMENT" = "production" ]; then
+          export GF_SERVER_ROOT_URL='%(protocol)s://%(domain)s/grafana/'
+          export GF_SERVER_SERVE_FROM_SUB_PATH='true'
+        fi
+        exec /run.sh
     networks:
       - edge
 

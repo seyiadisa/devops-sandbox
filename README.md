@@ -125,6 +125,7 @@ Current example variables:
 
 ```env
 PROJECT_NAME=devops-sandbox
+ENVIRONMENT=local
 NGINX_PORT=8080
 API_PORT=8000
 EDGE_NETWORK=devops-sandbox-edge
@@ -139,6 +140,7 @@ GRAFANA_ADMIN_PASSWORD=admin
 What they do:
 
 - `PROJECT_NAME`: prefix used for long-running platform containers and networks
+- `ENVIRONMENT`: set to `local` for direct local access, or `production` to enable Grafana and Prometheus subpath settings for reverse proxying
 - `NGINX_PORT`: host port exposed by Nginx
 - `API_PORT`: internal port used by the control API container
 - `EDGE_NETWORK`: shared Docker network used by Nginx and all active sandbox apps
@@ -179,6 +181,15 @@ This starts:
 - Grafana
 - the cleanup daemon in the background
 - the health poller in the background
+
+If you are reverse proxying Grafana and Prometheus behind a host Nginx on a server, set:
+
+```env
+ENVIRONMENT=production
+```
+
+In `local`, Grafana and Prometheus start without subpath settings.
+In `production`, Grafana is configured for `/grafana/` and Prometheus is configured for `/prometheus/`.
 
 ### 4. Confirm the platform is alive
 

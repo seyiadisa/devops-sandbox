@@ -1,11 +1,23 @@
 SHELL := /bin/bash
 
+-include .env
+export
+
 PROJECT_NAME ?= devops-sandbox
+ENVIRONMENT ?= local
+
+COMPOSE_FILES := -f docker-compose.yml
+
+ifeq ($(ENVIRONMENT),production)
+COMPOSE_FILES += -f docker-compose.prod.yml
+else
+COMPOSE_FILES += -f docker-compose.local.yml
+endif
 
 .PHONY: up down create destroy logs health simulate clean ensure-dirs
 
 up: ensure-dirs
-	docker compose up -d
+	docker compose $(COMPOSE_FILES) up -d
 	bash ./platform/start_workers.sh
 
 down:
@@ -16,7 +28,7 @@ down:
 		env_id="$${env_id%.json}"; \
 		bash ./platform/destroy_env.sh "$$env_id"; \
 	done
-	docker compose down --remove-orphans
+	docker compose $(COMPOSE_FILES) down --remove-orphans
 
 create:
 	@name="$${ENV_NAME:-}"; \
@@ -64,7 +76,7 @@ simulate:
 	bash ./platform/simulate_outage.sh --env "${ENV}" --mode "${MODE}"
 
 clean: down
-	docker compose down --remove-orphans --volumes
+	docker compose $(COMPOSE_FILES) down --remove-orphans --volumes
 	rm -f nginx/conf.d/*.conf
 	find envs -mindepth 1 -delete
 	find logs -mindepth 1 -maxdepth 1 ! -name 'archived' -exec rm -rf {} +

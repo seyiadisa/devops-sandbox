@@ -24,7 +24,7 @@ jobs:
         run: cp .env.example .env
 
       - name: Validate Docker Compose config
-        run: docker compose config
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 
       - name: Validate shell scripts
         run: |
@@ -53,8 +53,9 @@ jobs:
       - name: Deploy to server
         run: |
           ssh -p "${{ secrets.SERVER_SSH_PORT }}" "${{ secrets.SERVER_SSH_USER }}"@"${{ secrets.SERVER_SSH_HOST }}" << EOF
+          set -e
           cd /var/www/devops-sandbox
           git pull origin main
-          docker compose up -d --build api
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build api
           make up
           EOF

@@ -1,0 +1,23 @@
+services:
+  nginx:
+    ports:
+      - "127.0.0.1:${NGINX_PORT}:80"
+
+  prometheus:
+    ports:
+      - "127.0.0.1:9090:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.external-url=${PUBLIC_BASE_URL}/prometheus/
+      - --web.route-prefix=/prometheus/
+
+  grafana:
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SERVER_ROOT_URL: ${PUBLIC_BASE_URL}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+
+  loki:
+    ports:
+      - "127.0.0.1:3100:3100"

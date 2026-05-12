@@ -71,6 +71,9 @@ Observability:
 
 ```text
 devops-sandbox/
+├── docker-compose.yml
+├── docker-compose.local.yml
+├── docker-compose.prod.yml
 ├── platform/          # create_env.sh, destroy_env.sh, cleanup_daemon.sh, API, worker helpers
 ├── nginx/             # nginx.conf + conf.d/ generated per-environment configs
 ├── monitor/           # health poller + Prometheus/Loki/Promtail/Grafana configs
@@ -130,6 +133,7 @@ NGINX_PORT=8080
 API_PORT=8000
 EDGE_NETWORK=devops-sandbox-edge
 SANDBOX_BASE_URL=http://localhost:8080
+PUBLIC_BASE_URL=http://localhost
 DEFAULT_TTL_MINUTES=30
 SANDBOX_INTERNAL_PORT=8000
 LOKI_URL=http://localhost:3100
@@ -140,11 +144,12 @@ GRAFANA_ADMIN_PASSWORD=admin
 What they do:
 
 - `PROJECT_NAME`: prefix used for long-running platform containers and networks
-- `ENVIRONMENT`: set to `local` for direct local access, or `production` to enable Grafana and Prometheus subpath settings for reverse proxying
+- `ENVIRONMENT`: set to `local` to use `docker-compose.local.yml`, or `production` to use `docker-compose.prod.yml`
 - `NGINX_PORT`: host port exposed by Nginx
 - `API_PORT`: internal port used by the control API container
 - `EDGE_NETWORK`: shared Docker network used by Nginx and all active sandbox apps
 - `SANDBOX_BASE_URL`: base URL printed by the lifecycle scripts
+- `PUBLIC_BASE_URL`: public base URL used by production Prometheus and Grafana subpath configuration
 - `DEFAULT_TTL_MINUTES`: fallback TTL when none is supplied
 - `SANDBOX_INTERNAL_PORT`: internal port exposed by the sandbox app container
 - `LOKI_URL`: Loki base URL used by the API and CLI log queries
@@ -182,14 +187,27 @@ This starts:
 - the cleanup daemon in the background
 - the health poller in the background
 
+Compose file selection is driven by `ENVIRONMENT`:
+
+```text
+local      -> docker-compose.yml + docker-compose.local.yml
+production -> docker-compose.yml + docker-compose.prod.yml
+```
+
 If you are reverse proxying Grafana and Prometheus behind a host Nginx on a server, set:
 
 ```env
 ENVIRONMENT=production
 ```
 
-In `local`, Grafana and Prometheus start without subpath settings.
-In `production`, Grafana is configured for `/grafana/` and Prometheus is configured for `/prometheus/`.
+For production behind a host reverse proxy, also set:
+
+```env
+PUBLIC_BASE_URL=http://your-server-ip-or-domain
+```
+
+In `local`, Grafana and Prometheus are exposed directly on their normal ports.
+In `production`, Grafana is configured for `/grafana/` and Prometheus is configured for `/prometheus/`, and their container ports are bound to `127.0.0.1`.
 
 ### 4. Confirm the platform is alive
 
@@ -426,10 +444,10 @@ curl -X POST http://localhost:8080/api/envs/<env-id>/outage \
 Available targets:
 
 - `make up`  
-  Starts Nginx, the control API, the cleanup daemon, and the health poller.
+  Starts the stack with the compose override selected by `ENVIRONMENT`, then starts the cleanup daemon and health poller.
 
 - `make down`  
-  Stops workers, destroys all active environments, and shuts down platform containers.
+  Stops workers, destroys all active environments, and shuts down the compose stack selected by `ENVIRONMENT`.
 
 - `make create`  
   Prompts for environment name and TTL, then creates a new sandbox environment.
@@ -447,7 +465,7 @@ Available targets:
   Runs outage simulation.
 
 - `make clean`  
-  Wipes generated configs, state files, logs, and archives after shutting everything down.
+  Wipes generated configs, state files, logs, and archives after shutting down the compose stack selected by `ENVIRONMENT`.
 
 ## Full Demo Walkthrough
 
@@ -567,6 +585,11 @@ Access:
 - Prometheus: `http://localhost:9090`
 - Loki: `http://localhost:3100`
 - Grafana: `http://localhost:3000`
+
+In `production`, Prometheus and Grafana are intended to be accessed through your host Nginx reverse proxy, typically at:
+
+- `http://<server>/prometheus/`
+- `http://<server>/grafana/`
 
 Grafana credentials:
 
